@@ -63,13 +63,21 @@ rm -rf "$SITE_DST/vllm/"
 # ── 3. ensure editable vllm install ───────────────────────────────────────────
 if ! "$DSPARK_ENV/bin/python" -c "import vllm; assert vllm.__file__" 2>/dev/null; then
   info "Linking editable vllm install ($VLLM_SRC)..."
-  for f in "$SITE_SRC"/__editable__*.pth "$SITE_SRC"/__editable__*finder.py; do
-    [ -f "$f" ] && cp -f "$f" "$SITE_DST/"
-  done
-  for d in "$SITE_SRC"/vllm-*.dist-info; do
-    [ -d "$d" ] && cp -rf "$d" "$SITE_DST/"
-  done
-  ok "editable vllm install metadata copied"
+  EDITABLE_PTH=$(ls "$SITE_SRC"/__editable__*.pth 2>/dev/null | head -1 || true)
+  if [ -n "$EDITABLE_PTH" ]; then
+    # sparky-style: base venv has editable install metadata — copy it
+    for f in "$SITE_SRC"/__editable__*.pth "$SITE_SRC"/__editable__*finder.py; do
+      [ -f "$f" ] && cp -f "$f" "$SITE_DST/"
+    done
+    for d in "$SITE_SRC"/vllm-*.dist-info; do
+      [ -d "$d" ] && cp -rf "$d" "$SITE_DST/"
+    done
+    ok "editable vllm install metadata copied from $BASE_ENV"
+  else
+    # scenty-style: base venv has a wheel install — add VLLM_SRC to sys.path directly
+    echo "$VLLM_SRC" > "$SITE_DST/vllm-dspark-editable.pth"
+    ok "vllm path entry created ($VLLM_SRC)"
+  fi
 else
   ok "vllm already importable in $DSPARK_ENV — skipping"
 fi
