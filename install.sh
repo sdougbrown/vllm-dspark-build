@@ -89,6 +89,23 @@ assert str(p).startswith('$VLLM_SRC'), f'vllm loaded from unexpected path: {p}'
 " || die "vllm import check failed"
 ok "vllm loads from $VLLM_SRC"
 
+# Create vllm console script if not present (not copied by the .pth approach).
+if [ ! -x "$DSPARK_ENV/bin/vllm" ]; then
+  cat > "$DSPARK_ENV/bin/vllm" <<SCRIPT
+#!$DSPARK_ENV/bin/python3
+# -*- coding: utf-8 -*-
+import re, sys
+from vllm.entrypoints.cli.main import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\\.pyw|\\.exe)?\$', '', sys.argv[0])
+    sys.exit(main())
+SCRIPT
+  chmod +x "$DSPARK_ENV/bin/vllm"
+  ok "vllm console script created"
+else
+  ok "vllm console script already present"
+fi
+
 # ── 4. verify ─────────────────────────────────────────────────────────────────
 info "Running verify.py..."
 "$DSPARK_ENV/bin/python" "$SCRIPT_DIR/verify.py"
